@@ -1,0 +1,33 @@
+image: php:rc-fpm-alpine3.9
+
+before_script:
+  - "apk update -q && apk add -q openssh-client"
+
+build:
+  stage: build
+  script:
+    - "./scripts/lint.sh"
+  except:
+    - "master"
+
+deploy:
+  stage: deploy
+  script:
+    - "echo \"${SSH_PRIVATE_KEY}\" > temp_id_rsa"
+    - "./scripts/deploy.sh status.sprlng.de"
+  only:
+    - "master"
+  when: manual
+
+build-docker-image:
+  image: docker:latest
+  services:
+    - docker:19.03.1-dind
+  stage: build
+  script:
+    - "echo ${CI_REGISTRY_PASSWORD} | docker login -u ${CI_REGISTRY_USER} --password-stdin ${CI_REGISTRY}"
+    - "docker build -t ${CI_REGISTRY_IMAGE} ."
+    - "docker push ${CI_REGISTRY_IMAGE}:latest"
+  only:
+    - "master"
+  when: manual
